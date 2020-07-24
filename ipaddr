@@ -1,0 +1,2 @@
+#!/bin/sh
+dig @1.1.1.1 ch txt whoami.cloudflare +short | tr -d '"'
