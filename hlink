@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+if [ -n "${DEBUG:+x}" ]; then
+    set -x
+fi
+
+show_help() {
+    printf 'Usage: %s -t TARGET -- SOURCE...\n' "$(basename "$0")"
+    printf 'Hard link SOURCE(s) to TARGET directory.\n\n'
+    printf 'Target directories are created automatically if needed.\n\n'
+    printf '  -t, --target    target directory for hard links\n'
+    printf '  -h, --help      display this help and exit\n'
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -h|--help)
+            show_help
+            exit
+            ;;
+        -t|--target)
+            target="$(dirname "${2}/.")"
+            shift
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            printf 'ERROR: Unknown option: %s\n' "$1" >&2
+            show_help
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+mkdir -p "${target}"
+
+while [ $# -gt 0 ]; do
+    if [ -f "$1" ]; then
+        ln -t "${target}" "$1"
+    else
+        find "$1" -type d -not -empty -print0 \
+        | while IFS= read -r -d '' sdir; do
+            tdir=${sdir#$1}
+            tdir=${target}/${tdir#/}
+            mkdir -p "${tdir}"
+            find "$sdir" -maxdepth 1 -type f -print0 \
+            | xargs -r0 ln -t "${tdir}"
+        done
+    fi
+    shift
+done
