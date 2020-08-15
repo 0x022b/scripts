@@ -1,39 +1,58 @@
 #!/usr/bin/env bash
-set -Eeuo pipefail
+set -euo pipefail
 if [ -n "${DEBUG:+x}" ]; then
     set -x
 fi
 
-show_help() {
-    printf 'Usage: %s -t TARGET -- SOURCE...\n' "$(basename "$0")"
-    printf 'Hard link SOURCE(s) to TARGET directory.\n\n'
-    printf 'Target directories are created automatically if needed.\n\n'
-    printf '  -t, --target    target directory for hard links\n'
-    printf '  -h, --help      display this help and exit\n'
+print_help() {
+    printf 'usage: %s [-t TARGET] -- source...\n' "$(basename "$0")"
+    printf '\nHard link source(s) to another directory.\n'
+    printf '\npositional arguments:\n'
+    printf '  source                source(s) to hard link\n'
+    printf '\noptional arguments:\n'
+    printf '  -h, --help            display this help and exit\n'
+    printf '  -t TARGET, --target TARGET\n'
+    printf '                        target directory for hard links\n'
+    printf '  --version             output version information and exit\n'
 }
+
+print_version() {
+    printf '%s\n' '2020.08.16'
+}
+
+target="${PWD}"
 
 while [ $# -gt 0 ]; do
     case "$1" in
         -h|--help)
-            show_help
+            print_help
             exit
             ;;
         -t|--target)
             target="$(dirname "${2}/.")"
             shift
             ;;
+        --version)
+            print_version
+            exit
+            ;;
         --)
             shift
             break
             ;;
         *)
-            printf 'ERROR: Unknown option: %s\n' "$1" >&2
-            show_help
+            printf 'ERROR: unknown option: %s\n' "$1" >&2
+            print_help
             exit 1
             ;;
     esac
     shift
 done
+
+if [ $# -eq 0 ]; then
+    print_help
+    exit
+fi
 
 mkdir -p "${target}"
 
@@ -43,8 +62,8 @@ while [ $# -gt 0 ]; do
     else
         find "$1" -type d -not -empty -print0 \
         | while IFS= read -r -d '' sdir; do
-            tdir=${sdir#$1}
-            tdir=${target}/${tdir#/}
+            tdir="${target}/${sdir#$1}"
+            tdir="${tdir%/}"
             mkdir -p "${tdir}"
             find "$sdir" -maxdepth 1 -type f -print0 \
             | xargs -r0 ln -t "${tdir}"

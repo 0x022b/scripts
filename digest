@@ -6,15 +6,26 @@ fi
 
 trap 'echo "ERROR: Digest calculation failed" >&2' ERR
 
-show_help() {
-    printf 'Usage: %s [OPTION]... -- SOURCE\n' "$(basename "$0")"
-    printf 'Compute message digests recursively for a directory tree.\n\n'
-    printf '  -a, --algorithm <algo>   digest algorithm (default: sha256sum)\n'
-    printf '  -o, --overwrite          overwrite existing digest file\n'
-    printf '  -r, --relative           target path is relative to source\n'
-    printf '  -t, --target <file>      output digest file\n'
-    printf '  -h, --help               display this help and exit\n\n'
-    printf 'Algorithm support depends on digest utilities installed in default path.\n'
+print_help() {
+    printf 'usage: %s [-a ALGORITHM] [-t TARGET] [-o] [-r] -- source\n' "$(basename "$0")"
+    printf '\nCompute message digests recursively for a directory tree.\n'
+    printf '\npositional arguments:\n'
+    printf '  source                source directory\n'
+    printf '\noptional arguments:\n'
+    printf '  -h, --help            display this help and exit\n'
+    printf '  -a ALGORITHM, --algorithm ALGORITHM\n'
+    printf '                        digest algorithm (default: sha256sum)\n'
+    printf '  -t TARGET, --target TARGET\n'
+    printf '                        target digest file\n'
+    printf '  -o, --overwrite       overwrite existing digest file\n'
+    printf '  -r, --relative        target path is relative to source\n'
+    printf '  --version             output version information and exit\n'
+    printf '\nAlgorithm support depends on installed digest utilities.\n'
+    # ls -1 /usr/bin/*sum | xargs -n1 basename
+}
+
+print_version() {
+    printf '%s\n' '2020.08.16'
 }
 
 set_algorithm() {
@@ -35,7 +46,7 @@ while [ $# -gt 0 ]; do
             shift
             ;;
         -h|--help)
-            show_help
+            print_help
             exit
             ;;
         -o|--overwrite)
@@ -48,14 +59,18 @@ while [ $# -gt 0 ]; do
             target="$2"
             shift
             ;;
+        --version)
+            print_version
+            exit
+            ;;
         --)
             source="$(dirname "${2}/.")"
             shift
             break
             ;;
         *)
-            printf 'ERROR: Unknown option: %s\n' "$1" >&2
-            show_help
+            printf 'ERROR: unknown option: %s\n' "$1" >&2
+            print_help
             exit 1
             ;;
     esac
@@ -65,12 +80,12 @@ done
 target=".${algorithm}"
 
 if [ $# -eq 0 ]; then
-    show_help
+    print_help
     exit
 fi
 
-if [ -z "${algorithm}" ] || [ -z "${source}" ]; then
-    show_help
+if [ -z "${source}" ]; then
+    print_help
     exit 1
 fi
 
