@@ -1,2 +1,45 @@
 #!/bin/sh
-dig @1.1.1.1 ch txt whoami.cloudflare +short | tr -d '"'
+set -eu
+if [ -n "${DEBUG:+x}" ]; then
+    set -x
+fi
+
+print_help() {
+    printf 'usage: %s [-6]\n' "$(basename "$0")"
+    printf '\nDisplay hosts public IPv4 or IPv6 address.\n'
+    printf '\noptional arguments:\n'
+    printf '  -h, --help            display this help and exit\n'
+    printf '  -6                    display public IPv6 address\n'
+    printf '  --version             output version information and exit\n'
+}
+
+print_version() {
+    printf '%s\n' '2020.08.16'
+}
+
+args='@1.1.1.1 -4'
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -h|--help)
+            print_help
+            exit
+            ;;
+        -6)
+            args='@2606:4700:4700::1111 -6'
+            ;;
+        --version)
+            print_version
+            exit
+            ;;
+        *)
+            printf 'ERROR: unknown option: %s\n' "$1" >&2
+            print_help
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+# shellcheck disable=SC2086
+dig ${args} ch txt whoami.cloudflare +short | tr -d '"'

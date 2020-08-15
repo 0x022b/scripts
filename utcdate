@@ -1,2 +1,38 @@
 #!/bin/sh
+set -eu
+if [ -n "${DEBUG:+x}" ]; then
+    set -x
+fi
+
+print_help() {
+    printf 'usage: %s\n' "$(basename "$0")"
+    printf '\nDisplay the current date and time in RFC 3339 format.\n'
+    printf '\noptional arguments:\n'
+    printf '  -h, --help            display this help and exit\n'
+    printf '  --version             output version information and exit\n'
+}
+
+print_version() {
+    printf '%s\n' '2020.08.16'
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -h|--help)
+            print_help
+            exit
+            ;;
+        --version)
+            print_version
+            exit
+            ;;
+        *)
+            printf 'ERROR: unknown option: %s\n' "$1" >&2
+            print_help
+            exit 1
+            ;;
+    esac
+    shift
+done
+
 date --utc --rfc-3339=seconds
