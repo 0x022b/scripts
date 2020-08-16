@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if [ -n "${DEBUG:+x}" ]; then
+    set -x
+fi
+
+print_help() {
+    printf 'usage: %s [-t TARGET] -v VARIABLES -- source\n' "$(basename "$0")"
+    printf '\nRender Jinja template(s) to a directory.\n'
+    printf '\npositional arguments:\n'
+    printf '  source                source file or directory to render\n'
+    printf '\nmandatory arguments:\n'
+    printf '  -v VARIABLES, --variables VARIABLES\n'
+    printf '                        INI, YAML or JSON formatted variable file\n'
+    printf '\noptional arguments:\n'
+    printf '  -h, --help            display this help and exit\n'
+    printf '  -t TARGET, --target TARGET\n'
+    printf '                        target directory for rendered template(s)\n'
+    printf '  --version             output version information and exit\n'
+}
+
+print_version() {
+    printf '%s\n' '2020.08.16'
+}
+
+target="${PWD}"
+variables=''
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -h|--help)
+            print_help
+            exit
+            ;;
+        -t|--target)
+            target="$(dirname "${2}/.")"
+            shift
+            ;;
+        -v|--variables)
+            variables="$2"
+            shift
+            ;;
+        --version)
+            print_version
+            exit
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            printf 'ERROR: unknown option: %s\n' "$1" >&2
+            print_help
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+if [ $# -eq 0 ]; then
+    print_help
+    exit
+fi
+
+if [ -z "${variables}" ]; then
+    print_help
+    exit 1
+fi
+
+mkdir -p "${target}"
+
+while [ $# -gt 0 ]; do
+    if [ -f "$1" ]; then
+        tfile="${1##*/}"
+        jinja2 --strict -o "${target}/${tfile%.j2}" "$1" "${variables}"
+    else
+        find "$1" -type d -not -empty -print0 \
+        | while IFS= read -r -d '' sdir; do
+            tdir="${target}/${sdir#$1}"
+            tdir="${tdir%/}"
+            mkdir -p "${tdir}"
+            find "${sdir}" -maxdepth 1 -type f -print0 \
+            | while IFS= read -r -d '' sfile; do
+                if [ "${sfile##*.}" == "j2" ]; then
+                    tfile="${sfile##*/}"
+                    jinja2 --strict -o "${tdir}/${tfile%.j2}" "${sfile}" "${variables}"
+                else
+                    cp "${sfile}" "${tdir}"
+                fi
+            done
+        done
+    fi
+    shift
+done
