@@ -1,0 +1,89 @@
+#!/bin/sh
+set -eu
+if [ -n "${DEBUG:+x}" ]; then
+    set -x
+fi
+
+appname="$(basename $0)"
+
+print_help() {
+    printf 'usage: %s -g GUID -n NAME -- url\n' "${appname}"
+    printf '\nTriggers an alert if a website has changed since previous run.\n'
+    printf '\npositional arguments:\n'
+    printf '  url                   website to monitor\n'
+    printf '\nmandatory arguments:\n'
+    printf '  -g GUID, --guid GUID\n'
+    printf '                        healthchecks.io check GUID\n'
+    printf '  -n NAME, --name NAME\n'
+    printf '                        name for the monitor\n'
+    printf '\noptional arguments:\n'
+    printf '  -h, --help            display this help and exit\n'
+    printf '  --version             output version information and exit\n'
+}
+
+print_version() {
+    printf '%s\n' '2020.12.20'
+}
+
+name=
+pingurl=
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -h|--help)
+            print_help
+            exit
+            ;;
+        -g|--guid)
+            pingurl="https://hc-ping.com/$2"
+            shift
+            ;;
+        -n|--name)
+            name="$2"
+            shift
+            ;;
+        --version)
+            print_version
+            exit
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            printf 'ERROR: unknown option: %s\n' "$1" >&2
+            print_help
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+if [ $# -eq 0 ]; then
+    print_help
+    exit
+fi
+
+if [ -z "${name}" ] || [ -z "${pingurl}" ]; then
+    print_help
+    exit 1
+fi
+
+workdir="${HOME}/.local/share/${appname}/${name}"
+
+mkdir -p "${workdir}"
+cd "${workdir}"
+
+if [ -e 'new.md' ]; then
+    mv 'new.md' 'old.md'
+fi
+
+curl -fsS -m 10 --retry 5 -o 'page.html' "$1"
+html2text 'page.html' > 'new.md'
+
+if [ -e 'old.md' ]; then
+    if ! diff 'new.md' 'old.md'; then
+        pingurl="${pingurl}/fail"
+    fi
+    curl -fsS -m 10 --retry 5 -o '/dev/null' "${pingurl}"
+fi
